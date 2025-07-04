@@ -18,17 +18,19 @@ const exportBtn = document.getElementById('exportBtn');
 const decreaseFontBtn = document.getElementById('decreaseFontBtn');
 const increaseFontBtn = document.getElementById('increaseFontBtn');
 
-let savedRange = null;
-let currentLineFormat = 'P'; // Track current line format for new text
+let isUpdatingFormat = false;
 
 // Initialize editor
 editor.focus();
 updatePreview();
 
+// Use inline CSS for execCommand styling
+if (document.queryCommandSupported('styleWithCSS')) {
+    document.execCommand('styleWithCSS', false, true);
+}
+
 function execCmd(cmd, value = null) {
-    restoreSelection();
     document.execCommand(cmd, false, value);
-    saveSelection();
     editor.focus();
     updatePreview();
     updateToolbarState();
@@ -43,11 +45,12 @@ toolbar.addEventListener('click', e => {
     execCmd(cmd, value);
 });
 
-// Simple line-based heading formatting
+// Simple heading formatting - no complex cursor management
 headingSelect.addEventListener('change', () => {
+    if (isUpdatingFormat) return;
+    
     const selectedFormat = headingSelect.value;
-    currentLineFormat = selectedFormat;
-    applyFormatToCurrentLine(selectedFormat);
+    execCmd('formatBlock', selectedFormat);
 });
 
 fontFamilySelect.addEventListener('change', () => {
@@ -64,13 +67,19 @@ highlightColorPicker.addEventListener('input', () => {
 
 // Font size handling
 fontSizeInput.addEventListener('input', () => {
-    execCmd('fontSize', getFontSizeLevel(parseInt(fontSizeInput.value, 10)));
+    const size = parseInt(fontSizeInput.value, 10);
+    if (size >= 8 && size <= 72) {
+        execCmd('fontSize', getFontSizeLevel(size));
+    }
 });
 
 fontSizeInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
-        execCmd('fontSize', getFontSizeLevel(parseInt(fontSizeInput.value, 10)));
+        const size = parseInt(fontSizeInput.value, 10);
+        if (size >= 8 && size <= 72) {
+            execCmd('fontSize', getFontSizeLevel(size));
+        }
         editor.focus();
     }
 });
@@ -88,6 +97,7 @@ increaseFontBtn.addEventListener('click', (e) => {
 clearFormatBtn.addEventListener('click', () => {
     execCmd('removeFormat');
     fontSizeInput.value = 16;
+    headingSelect.value = 'P';
 });
 
 clearBtn.addEventListener('click', () => {
@@ -95,7 +105,6 @@ clearBtn.addEventListener('click', () => {
         editor.innerHTML = '<p>Start typing your document here...</p>';
         updatePreview();
         fontSizeInput.value = 16;
-        currentLineFormat = 'P';
         headingSelect.value = 'P';
     }
 });
@@ -114,113 +123,23 @@ function getFontSizeLevel(size) {
     return 7;
 }
 
-// Apply format to current line only
-function applyFormatToCurrentLine(format) {
-    const sel = window.getSelection();
-    if (!sel.rangeCount) return;
-
-    // Save current cursor position
-    const range = sel.getRangeAt(0);
-    const startOffset = range.startOffset;
-    const endOffset = range.endOffset;
-
-    // Use formatBlock to change the current line/block
-    execCmd('formatBlock', format);
-
-    // Restore cursor position
-    setTimeout(() => {
-        try {
-            const newSel = window.getSelection();
-            if (newSel.rangeCount) {
-                const newRange = newSel.getRangeAt(0);
-                // Try to maintain cursor position
-                if (newRange.startContainer.nodeType === Node.TEXT_NODE) {
-                    newRange.setStart(newRange.startContainer, Math.min(startOffset, newRange.startContainer.textContent.length));
-                    newRange.setEnd(newRange.startContainer, Math.min(endOffset, newRange.startContainer.textContent.length));
-                    newSel.removeAllRanges();
-                    newSel.addRange(newRange);
-                }
-            }
-        } catch (e) {
-            // Fallback - just focus editor
-            editor.focus();
-        }
-        updateToolbarState();
-    }, 10);
-}
-
-// Handle new text input with current format
-editor.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-        // When Enter is pressed, apply current format to new line
-        setTimeout(() => {
-            if (currentLineFormat !== 'P') {
-                applyFormatToCurrentLine(currentLineFormat);
-            }
-        }, 10);
-    }
-});
-
-// Selection management
-function saveSelection() {
-    const sel = window.getSelection();
-    if (sel.rangeCount && editor.contains(sel.anchorNode)) {
-        savedRange = sel.getRangeAt(0);
-    }
-}
-
-function restoreSelection() {
-    if (savedRange) {
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(savedRange);
-    }
-}
-
+// Simple input handler
 editor.addEventListener('input', () => {
     updatePreview();
-    updateToolbarState();
+    // Small delay to avoid conflicts
+    setTimeout(updateToolbarState, 10);
 });
 
+// Update toolbar state when selection changes
 ['mouseup', 'keyup', 'focus'].forEach(evt =>
     editor.addEventListener(evt, () => {
-        saveSelection();
-        updateToolbarState();
-        updateCurrentLineFormat();
+        setTimeout(updateToolbarState, 10);
     })
 );
 
-// Update current line format based on cursor position
-function updateCurrentLineFormat() {
-    const sel = window.getSelection();
-    if (!sel.rangeCount || !editor.contains(sel.anchorNode)) return;
-
-    const range = sel.getRangeAt(0);
-    let container = range.startContainer;
-
-    // Find the block element
-    while (container && container.nodeType === Node.TEXT_NODE) {
-        container = container.parentElement;
-    }
-
-    while (container && container !== editor && 
-           !['P', 'H1', 'H2', 'H3', 'DIV'].includes(container.tagName)) {
-        container = container.parentElement;
-    }
-
-    if (container && ['P', 'H1', 'H2', 'H3'].includes(container.tagName)) {
-        currentLineFormat = container.tagName;
-        if (headingSelect.value !== currentLineFormat) {
-            headingSelect.value = currentLineFormat;
-        }
-    } else if (container && container.tagName === 'DIV') {
-        // Treat DIV as paragraph
-        currentLineFormat = 'P';
-        headingSelect.value = 'P';
-    }
-}
-
 function updateToolbarState() {
+    if (isUpdatingFormat) return;
+    
     // Update text formatting buttons
     const commands = ['bold', 'italic', 'underline', 'strikeThrough'];
     commands.forEach(cmd => {
@@ -239,27 +158,44 @@ function updateToolbarState() {
         }
     });
 
+    // Update heading select based on current block
     const sel = window.getSelection();
     if (!sel.rangeCount || !editor.contains(sel.anchorNode)) return;
 
-    const range = sel.getRangeAt(0);
-    let container = range.startContainer;
-
-    // Traverse up to find the element with styling
-    while (container && container.nodeType === Node.TEXT_NODE) {
-        container = container.parentElement;
+    let element = sel.anchorNode;
+    if (element.nodeType === Node.TEXT_NODE) {
+        element = element.parentElement;
     }
 
-    if (container && editor.contains(container)) {
-        // Detect font family
-        const fontFamily = window.getComputedStyle(container).fontFamily.split(',')[0].replace(/['"]/g, '');
-        if ([...fontFamilySelect.options].some(o => o.value === fontFamily)) {
+    // Find the block element
+    while (element && element !== editor) {
+        if (['P', 'H1', 'H2', 'H3', 'DIV'].includes(element.tagName)) {
+            isUpdatingFormat = true;
+            if (element.tagName === 'DIV') {
+                headingSelect.value = 'P';
+            } else {
+                headingSelect.value = element.tagName;
+            }
+            setTimeout(() => { isUpdatingFormat = false; }, 50);
+            break;
+        }
+        element = element.parentElement;
+    }
+
+    // Update font family
+    if (element && editor.contains(element)) {
+        const computedStyle = window.getComputedStyle(element);
+        const fontFamily = computedStyle.fontFamily.split(',')[0].replace(/['"]/g, '');
+        
+        // Check if this font exists in our options
+        const fontOptions = [...fontFamilySelect.options].map(o => o.value);
+        if (fontOptions.includes(fontFamily)) {
             fontFamilySelect.value = fontFamily;
         }
 
-        // Update font size input based on computed style
-        const fontSize = parseInt(window.getComputedStyle(container).fontSize, 10);
-        if (fontSize && !isNaN(fontSize)) {
+        // Update font size
+        const fontSize = parseInt(computedStyle.fontSize, 10);
+        if (fontSize && !isNaN(fontSize) && fontSize !== parseInt(fontSizeInput.value, 10)) {
             fontSizeInput.value = fontSize;
         }
     }
@@ -273,7 +209,7 @@ function adjustFontSize(delta) {
     execCmd('fontSize', getFontSizeLevel(newSize));
 }
 
-// Preview update
+// Preview update with proper font inheritance
 function updatePreview() {
     const title = document.getElementById('docTitle').value.trim() || 'Untitled Document';
     const content = editor.innerHTML;
@@ -291,10 +227,28 @@ function updatePreview() {
       margin: 20px;
       font-size: 16px;
     }
-    h1 { font-size: 2em; font-weight: bold; margin: 1em 0 0.5em 0; }
-    h2 { font-size: 1.5em; font-weight: bold; margin: 1em 0 0.5em 0; }
-    h3 { font-size: 1.25em; font-weight: bold; margin: 1em 0 0.5em 0; }
-    p { margin: 0.5em 0; }
+    h1 { 
+      font-size: 2em; 
+      font-weight: bold; 
+      margin: 1em 0 0.5em 0; 
+    }
+    h2 { 
+      font-size: 1.5em; 
+      font-weight: bold; 
+      margin: 1em 0 0.5em 0; 
+    }
+    h3 { 
+      font-size: 1.25em; 
+      font-weight: bold; 
+      margin: 1em 0 0.5em 0; 
+    }
+    p { 
+      margin: 0.5em 0; 
+    }
+    /* Preserve font family changes */
+    * {
+      font-family: inherit;
+    }
   </style>
 </head>
 <body>
@@ -326,6 +280,7 @@ function printContent() {
     h2 { font-size: 1.5em; font-weight: bold; margin: 1em 0 0.5em 0; }
     h3 { font-size: 1.25em; font-weight: bold; margin: 1em 0 0.5em 0; }
     p { margin: 0.5em 0; }
+    * { font-family: inherit; }
   </style>
 </head>
 <body>
@@ -375,6 +330,7 @@ header p{margin:.5rem 0 0;text-align:center;color:var(--text-light);}
 .content table{width:100%;border-collapse:collapse;margin:1rem 0;}
 .content th,.content td{border:1px solid var(--border);padding:.5rem;}
 .content code,.content pre{background:#f7fafc;padding:.2rem .4rem;border-radius:4px;}
+* { font-family: inherit; }
 `;
 
     const html = `<!DOCTYPE html>
@@ -424,5 +380,4 @@ header p{margin:.5rem 0 0;text-align:center;color:var(--text-light);}
 // Initialize toolbar state
 setTimeout(() => {
     updateToolbarState();
-    updateCurrentLineFormat();
 }, 100);

@@ -62,14 +62,14 @@ toolbar.addEventListener('click', e => {
 // Enhanced heading select - applies CSS styling instead of formatBlock
 headingSelect.addEventListener('change', () => {
     documentStyles.headingLevel = headingSelect.value;
-    applyGlobalHeadingStyle();
+    applyGlobalStyles();
     updatePreview();
 });
 
 // Enhanced font family - applies to entire document
 fontFamilySelect.addEventListener('change', () => {
     documentStyles.fontFamily = fontFamilySelect.value;
-    applyGlobalFontFamily();
+    applyGlobalStyles();
     updatePreview();
 });
 
@@ -85,7 +85,7 @@ highlightColorPicker.addEventListener('input', () => {
 fontSizeInput.addEventListener('input', () => {
     if (isUpdatingFontSize) return;
     documentStyles.fontSize = parseInt(fontSizeInput.value, 10);
-    applyGlobalFontSize();
+    applyGlobalStyles();
     updatePreview();
 });
 
@@ -93,7 +93,7 @@ fontSizeInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
         documentStyles.fontSize = parseInt(fontSizeInput.value, 10);
-        applyGlobalFontSize();
+        applyGlobalStyles();
         updatePreview();
         editor.focus();
     }
@@ -122,7 +122,7 @@ clearFormatBtn.addEventListener('click', () => {
     headingSelect.value = 'P';
     fontFamilySelect.value = 'Inter';
     fontSizeInput.value = 16;
-    applyAllGlobalStyles();
+    applyGlobalStyles();
     updatePreview();
 });
 
@@ -140,7 +140,7 @@ clearBtn.addEventListener('click', () => {
         headingSelect.value = 'P';
         fontFamilySelect.value = 'Inter';
         fontSizeInput.value = 16;
-        applyAllGlobalStyles();
+        applyGlobalStyles();
         updatePreview();
     }
 });
@@ -148,62 +148,61 @@ clearBtn.addEventListener('click', () => {
 printBtn.addEventListener('click', printContent);
 exportBtn.addEventListener('click', exportHTML);
 
-// Global styling functions
-function applyGlobalHeadingStyle() {
+// Create or update dynamic style element
+function applyGlobalStyles() {
+    let styleElement = document.getElementById('dynamic-editor-styles');
+    if (!styleElement) {
+        styleElement = document.createElement('style');
+        styleElement.id = 'dynamic-editor-styles';
+        document.head.appendChild(styleElement);
+    }
+    
     const level = documentStyles.headingLevel;
-    let fontSize, fontWeight, marginTop, marginBottom;
+    let fontSize, fontWeight;
     
     switch(level) {
         case 'H1':
             fontSize = Math.max(documentStyles.fontSize * 2, 32);
             fontWeight = 'bold';
-            marginTop = '1.5em';
-            marginBottom = '0.5em';
             break;
         case 'H2':
             fontSize = Math.max(documentStyles.fontSize * 1.5, 24);
             fontWeight = 'bold';
-            marginTop = '1.3em';
-            marginBottom = '0.4em';
             break;
         case 'H3':
             fontSize = Math.max(documentStyles.fontSize * 1.25, 20);
             fontWeight = 'bold';
-            marginTop = '1.2em';
-            marginBottom = '0.3em';
             break;
         default: // P
             fontSize = documentStyles.fontSize;
             fontWeight = 'normal';
-            marginTop = '0.5em';
-            marginBottom = '0.5em';
     }
     
-    editor.style.fontSize = fontSize + 'px';
-    editor.style.fontWeight = fontWeight;
-    editor.style.marginTop = marginTop;
-    editor.style.marginBottom = marginBottom;
-}
-
-function applyGlobalFontFamily() {
-    editor.style.fontFamily = documentStyles.fontFamily;
-}
-
-function applyGlobalFontSize() {
-    // Recalculate heading size based on new base font size
-    applyGlobalHeadingStyle();
-}
-
-function applyAllGlobalStyles() {
-    applyGlobalFontFamily();
-    applyGlobalHeadingStyle();
+    // Apply styles via CSS instead of directly to the editor element
+    styleElement.textContent = `
+        #editor {
+            font-family: ${documentStyles.fontFamily}, Arial, sans-serif !important;
+            font-size: ${fontSize}px !important;
+            font-weight: ${fontWeight} !important;
+        }
+        
+        #editor * {
+            font-family: inherit !important;
+        }
+        
+        #editor p, #editor div {
+            font-size: inherit !important;
+            font-weight: inherit !important;
+            font-family: inherit !important;
+        }
+    `;
 }
 
 function adjustGlobalFontSize(delta) {
     const newSize = Math.min(72, Math.max(8, documentStyles.fontSize + delta));
     documentStyles.fontSize = newSize;
     fontSizeInput.value = newSize;
-    applyGlobalFontSize();
+    applyGlobalStyles();
     updatePreview();
     editor.focus();
 }
@@ -263,28 +262,24 @@ function updatePreview() {
     
     // Generate CSS based on current document styles
     const level = documentStyles.headingLevel;
-    let previewFontSize, previewFontWeight, previewMargin;
+    let previewFontSize, previewFontWeight;
     
     switch(level) {
         case 'H1':
             previewFontSize = Math.max(documentStyles.fontSize * 2, 32);
             previewFontWeight = 'bold';
-            previewMargin = '1.5em 0 0.5em 0';
             break;
         case 'H2':
             previewFontSize = Math.max(documentStyles.fontSize * 1.5, 24);
             previewFontWeight = 'bold';
-            previewMargin = '1.3em 0 0.4em 0';
             break;
         case 'H3':
             previewFontSize = Math.max(documentStyles.fontSize * 1.25, 20);
             previewFontWeight = 'bold';
-            previewMargin = '1.2em 0 0.3em 0';
             break;
         default: // P
             previewFontSize = documentStyles.fontSize;
             previewFontWeight = 'normal';
-            previewMargin = '0.5em 0';
     }
 
     const previewHTML = `
@@ -295,7 +290,7 @@ function updatePreview() {
   <title>${title}</title>
   <style>
     body { 
-      font-family: ${documentStyles.fontFamily}, Arial, sans-serif; 
+      font-family: "${documentStyles.fontFamily}", Arial, sans-serif; 
       line-height: 1.6; 
       margin: 20px;
       font-size: ${previewFontSize}px;
@@ -303,12 +298,12 @@ function updatePreview() {
       color: ${documentStyles.textColor};
       background-color: ${documentStyles.backgroundColor};
     }
-    p, div { 
-      margin: ${previewMargin};
-      font-size: inherit;
-      font-weight: inherit;
+    p, div, span { 
+      font-size: inherit !important;
+      font-weight: inherit !important;
+      font-family: inherit !important;
     }
-    /* Override any inline styles that might conflict */
+    /* Ensure all text inherits the document font */
     * {
       font-family: inherit !important;
     }
@@ -329,28 +324,24 @@ function printContent() {
     
     // Generate CSS based on current document styles
     const level = documentStyles.headingLevel;
-    let printFontSize, printFontWeight, printMargin;
+    let printFontSize, printFontWeight;
     
     switch(level) {
         case 'H1':
             printFontSize = Math.max(documentStyles.fontSize * 2, 32);
             printFontWeight = 'bold';
-            printMargin = '1.5em 0 0.5em 0';
             break;
         case 'H2':
             printFontSize = Math.max(documentStyles.fontSize * 1.5, 24);
             printFontWeight = 'bold';
-            printMargin = '1.3em 0 0.4em 0';
             break;
         case 'H3':
             printFontSize = Math.max(documentStyles.fontSize * 1.25, 20);
             printFontWeight = 'bold';
-            printMargin = '1.2em 0 0.3em 0';
             break;
         default: // P
             printFontSize = documentStyles.fontSize;
             printFontWeight = 'normal';
-            printMargin = '0.5em 0';
     }
     
     const win = window.open('', '_blank');
@@ -361,17 +352,17 @@ function printContent() {
   <title>${title}</title>
   <style>
     body { 
-      font-family: ${documentStyles.fontFamily}, Arial, sans-serif; 
+      font-family: "${documentStyles.fontFamily}", Arial, sans-serif; 
       line-height: 1.6; 
       margin: 20px;
       font-size: ${printFontSize}px;
       font-weight: ${printFontWeight};
       color: ${documentStyles.textColor};
     }
-    p, div { 
-      margin: ${printMargin};
-      font-size: inherit;
-      font-weight: inherit;
+    p, div, span { 
+      font-size: inherit !important;
+      font-weight: inherit !important;
+      font-family: inherit !important;
     }
     h1 { font-size: 1.2em; margin: 1em 0 0.5em 0; }
     * {
@@ -429,7 +420,7 @@ function generateExportHTML(title, contentHTML) {
     const css = `
 :root { --brand-green: #f0fdfa; --border: #e2e8f0; --text-dark: #111; --text-light: #555;}
 *{box-sizing:border-box;}
-body{margin:0;padding:0;font-family:${documentStyles.fontFamily},system-ui,sans-serif;color:var(--text-dark);font-size:${exportFontSize}px;font-weight:${exportFontWeight};}
+body{margin:0;padding:0;font-family:"${documentStyles.fontFamily}",system-ui,sans-serif;color:var(--text-dark);font-size:${exportFontSize}px;font-weight:${exportFontWeight};}
 header{background:var(--brand-green);padding:2rem 1rem;}
 header .inner{max-width:900px;margin:auto;}
 header h1{margin:0;text-align:center;font-size:2rem;}
@@ -448,7 +439,7 @@ header p{margin:.5rem 0 0;text-align:center;color:var(--text-light);}
 .content table{width:100%;border-collapse:collapse;margin:1rem 0;}
 .content th,.content td{border:1px solid var(--border);padding:.5rem;}
 .content code,.content pre{background:#f7fafc;padding:.2rem .4rem;border-radius:4px;}
-.content p, .content div { font-size: inherit; font-weight: inherit; font-family: inherit; }
+.content p, .content div, .content span { font-size: inherit !important; font-weight: inherit !important; font-family: inherit !important; }
 `;
 
     const html = `<!DOCTYPE html>
@@ -497,7 +488,7 @@ header p{margin:.5rem 0 0;text-align:center;color:var(--text-light);}
 
 // Initialize with default styles
 setTimeout(() => {
-    applyAllGlobalStyles();
+    applyGlobalStyles();
     updateToolbarState();
     updatePreview();
 }, 100);

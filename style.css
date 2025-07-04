@@ -1,0 +1,175 @@
+        :root {
+            --bg-toolbar: #fff;
+            --border-light: #ddd;
+            --shadow-light: rgba(0, 0, 0, 0.05);
+            --font-main: 'Inter', sans-serif;
+            --color-text: #111;
+            --color-muted: #555;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-main);
+            background-color: #f9f9f9;
+            color: var(--color-text);
+        }
+
+        .toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            padding: 0.5rem;
+            background-color: var(--bg-toolbar);
+            border-bottom: 1px solid var(--border-light);
+            box-shadow: 0 1px 4px var(--shadow-light);
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .toolbar-group--right {
+            margin-left: auto;
+        }
+
+        .toolbar-spacer {
+            width: 1px;
+            height: 1.5rem;
+            background: var(--border-light);
+            margin: 0 4px;
+        }
+
+        .toolbar-select,
+        .toolbar-number,
+        .toolbar-btn,
+        .toolbar-color {
+            cursor: pointer;
+            background: #fdfdfd;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 4px;
+            font-size: 0.875rem;
+        }
+
+        .toolbar-number {
+            width: 4rem;
+            text-align: center;
+        }
+
+        .toolbar-btn {
+            all: unset;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 4px;
+            transition: background 0.2s;
+            cursor: pointer;
+        }
+
+        .toolbar-btn:hover {
+            background: #eee;
+        }
+
+        .toolbar-btn:active {
+            background: #e0e0e0;
+        }
+
+        .toolbar-btn.active {
+            background: #d1ecf1;
+            border-color: #bee5eb;
+        }
+
+        .toolbar-color {
+            width: 2rem;
+            height: 2rem;
+            padding: 2px;
+            cursor: pointer;
+        }
+
+        .content {
+            display: flex;
+            height: calc(100vh - 3.5rem);
+        }
+
+        .editor-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            margin: 1rem;
+        }
+
+        .doc-title {
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .editor {
+            flex: 1;
+            padding: 1rem;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            overflow-y: auto;
+            font-size: 16px;
+            line-height: 1.6;
+            outline: none;
+        }
+
+        .editor:focus {
+            border-color: #4285f4;
+            box-shadow: 0 0 0 1px #4285f4;
+        }
+
+        .preview-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            margin: 1rem;
+        }
+
+        .preview-container h3 {
+            margin: 0 0 0.5rem;
+            color: var(--color-muted);
+            font-size: 1rem;
+        }
+
+        .preview-frame {
+            flex: 1;
+            width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background: #fff;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                flex-direction: column;
+            }
+
+            .toolbar {
+                gap: 4px;
+                padding: 0.25rem;
+            }
+
+            .toolbar-group {
+                gap: 2px;
+            }
+        }

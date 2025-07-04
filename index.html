@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Webpage Writer Pro</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet" />
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+    <header class="toolbar">
+        <!-- Group 1: Block Type, Font Family, Size -->
+        <div class="toolbar-group">
+            <select id="headingSelect" class="toolbar-select" aria-label="Format block">
+                <option value="P">Paragraph</option>
+                <option value="H1">Heading 1</option>
+                <option value="H2">Heading 2</option>
+                <option value="H3">Heading 3</option>
+            </select>
+
+            <select id="fontFamilySelect" class="toolbar-select" aria-label="Font family">
+                <option value="Arial">Arial</option>
+                <option value="Courier New">Courier New</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Inter">Inter</option>
+            </select>
+
+            <div class="toolbar-spacer"></div>
+
+            <button id="decreaseFontBtn" class="toolbar-btn" title="Decrease font size"><i
+                    class="fa fa-minus"></i></button>
+            <input type="number" id="fontSizeInput" class="toolbar-number" min="8" max="72" value="16"
+                aria-label="Font size" />
+            <button id="increaseFontBtn" class="toolbar-btn" title="Increase font size"><i
+                    class="fa fa-plus"></i></button>
+        </div>
+
+        <!-- Group 2: Text Styles -->
+        <div class="toolbar-group">
+            <button data-cmd="bold" class="toolbar-btn" title="Bold"><i class="fa fa-bold"></i></button>
+            <button data-cmd="italic" class="toolbar-btn" title="Italic"><i class="fa fa-italic"></i></button>
+            <button data-cmd="underline" class="toolbar-btn" title="Underline"><i class="fa fa-underline"></i></button>
+            <button data-cmd="strikeThrough" class="toolbar-btn" title="Strikethrough"><i
+                    class="fa fa-strikethrough"></i></button>
+        </div>
+
+        <!-- Group 3: Colors & Painter -->
+        <div class="toolbar-group">
+            <input type="color" id="textColorPicker" class="toolbar-color" title="Text color" />
+            <input type="color" id="highlightColorPicker" class="toolbar-color" title="Highlight color" />
+            <button id="clearFormatBtn" class="toolbar-btn" title="Clear formatting"><i
+                    class="fa fa-paint-brush"></i></button>
+        </div>
+
+        <!-- Group 4: Alignment -->
+        <div class="toolbar-group">
+            <button data-cmd="justifyLeft" class="toolbar-btn" title="Align left"><i
+                    class="fa fa-align-left"></i></button>
+            <button data-cmd="justifyCenter" class="toolbar-btn" title="Center"><i
+                    class="fa fa-align-center"></i></button>
+            <button data-cmd="justifyRight" class="toolbar-btn" title="Align right"><i
+                    class="fa fa-align-right"></i></button>
+            <button data-cmd="justifyFull" class="toolbar-btn" title="Justify"><i
+                    class="fa fa-align-justify"></i></button>
+        </div>
+
+        <!-- Group 5: Indent & Lists -->
+        <div class="toolbar-group">
+            <button data-cmd="outdent" class="toolbar-btn" title="Outdent"><i class="fa fa-outdent"></i></button>
+            <button data-cmd="indent" class="toolbar-btn" title="Indent"><i class="fa fa-indent"></i></button>
+            <button data-cmd="insertUnorderedList" class="toolbar-btn" title="Bulleted list"><i
+                    class="fa fa-list-ul"></i></button>
+            <button data-cmd="insertOrderedList" class="toolbar-btn" title="Numbered list"><i
+                    class="fa fa-list-ol"></i></button>
+        </div>
+
+        <!-- Actions -->
+        <div class="toolbar-group toolbar-group--right">
+            <button id="clearBtn" class="toolbar-btn" title="Clear all content"><i class="fa fa-eraser"></i></button>
+            <button id="printBtn" class="toolbar-btn" title="Print"><i class="fa fa-print"></i></button>
+            <button id="exportBtn" class="toolbar-btn" title="Export HTML"><i class="fa fa-file-export"></i></button>
+        </div>
+    </header>
+
+    <main class="content">
+        <aside class="editor-panel">
+            <input type="text" id="docTitle" class="doc-title" placeholder="Enter document title" />
+            <div id="editor" class="editor" contenteditable="true" aria-label="Document editor">
+                <p>Start typing your document here...</p>
+            </div>
+        </aside>
+
+        <section class="preview-container">
+            <h3>Preview</h3>
+            <iframe id="preview" class="preview-frame" sandbox="allow-scripts"></iframe>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

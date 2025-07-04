@@ -19,17 +19,11 @@ const decreaseFontBtn = document.getElementById('decreaseFontBtn');
 const increaseFontBtn = document.getElementById('increaseFontBtn');
 
 let savedRange = null;
-let isUpdatingFontSize = false;
 let currentLineFormat = 'P'; // Track current line format for new text
 
 // Initialize editor
 editor.focus();
 updatePreview();
-
-// Use inline CSS for execCommand styling
-if (document.queryCommandSupported('styleWithCSS')) {
-    document.execCommand('styleWithCSS', false, false);
-}
 
 function execCmd(cmd, value = null) {
     restoreSelection();
@@ -49,7 +43,7 @@ toolbar.addEventListener('click', e => {
     execCmd(cmd, value);
 });
 
-// Line-based heading formatting
+// Simple line-based heading formatting
 headingSelect.addEventListener('change', () => {
     const selectedFormat = headingSelect.value;
     currentLineFormat = selectedFormat;
@@ -70,14 +64,13 @@ highlightColorPicker.addEventListener('input', () => {
 
 // Font size handling
 fontSizeInput.addEventListener('input', () => {
-    if (isUpdatingFontSize) return;
-    applyFontSize();
+    execCmd('fontSize', getFontSizeLevel(parseInt(fontSizeInput.value, 10)));
 });
 
 fontSizeInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
-        applyFontSize();
+        execCmd('fontSize', getFontSizeLevel(parseInt(fontSizeInput.value, 10)));
         editor.focus();
     }
 });
@@ -95,7 +88,6 @@ increaseFontBtn.addEventListener('click', (e) => {
 clearFormatBtn.addEventListener('click', () => {
     execCmd('removeFormat');
     fontSizeInput.value = 16;
-    applyFontSize();
 });
 
 clearBtn.addEventListener('click', () => {
@@ -111,126 +103,59 @@ clearBtn.addEventListener('click', () => {
 printBtn.addEventListener('click', printContent);
 exportBtn.addEventListener('click', exportHTML);
 
+// Convert font size to execCommand level (1-7)
+function getFontSizeLevel(size) {
+    if (size <= 10) return 1;
+    if (size <= 13) return 2;
+    if (size <= 16) return 3;
+    if (size <= 18) return 4;
+    if (size <= 24) return 5;
+    if (size <= 32) return 6;
+    return 7;
+}
+
 // Apply format to current line only
 function applyFormatToCurrentLine(format) {
     const sel = window.getSelection();
     if (!sel.rangeCount) return;
 
+    // Save current cursor position
     const range = sel.getRangeAt(0);
-    let currentElement = range.startContainer;
-
-    // Find the current block element (P, H1, H2, H3, etc.)
-    while (currentElement && currentElement.nodeType === Node.TEXT_NODE) {
-        currentElement = currentElement.parentElement;
-    }
-
-    // Find the actual block element containing the cursor/selection
-    while (currentElement && currentElement !== editor && 
-           !['P', 'H1', 'H2', 'H3', 'DIV'].includes(currentElement.tagName)) {
-        currentElement = currentElement.parentElement;
-    }
-
-    if (!currentElement || currentElement === editor) {
-        // If no block element found, create one
-        execCmd('formatBlock', format);
-        return;
-    }
-
-    // Store the current selection position
     const startOffset = range.startOffset;
     const endOffset = range.endOffset;
-    const startContainer = range.startContainer;
-    const endContainer = range.endContainer;
 
-    // Get the content of the current element
-    const content = currentElement.innerHTML;
-    
-    // Create new element with the desired format
-    const newElement = document.createElement(format);
-    newElement.innerHTML = content;
-    
-    // Copy any existing styles (except those that conflict with the new format)
-    const computedStyle = window.getComputedStyle(currentElement);
-    if (computedStyle.fontFamily && computedStyle.fontFamily !== 'initial') {
-        newElement.style.fontFamily = computedStyle.fontFamily;
-    }
-    if (computedStyle.fontSize && computedStyle.fontSize !== 'initial') {
-        newElement.style.fontSize = computedStyle.fontSize;
-    }
-    if (computedStyle.color && computedStyle.color !== 'initial') {
-        newElement.style.color = computedStyle.color;
-    }
+    // Use formatBlock to change the current line/block
+    execCmd('formatBlock', format);
 
-    // Replace the current element
-    currentElement.parentNode.replaceChild(newElement, currentElement);
-
-    // Restore selection
-    try {
-        const newRange = document.createRange();
-        if (startContainer.nodeType === Node.TEXT_NODE) {
-            // Find corresponding text node in new element
-            const textNodes = getTextNodes(newElement);
-            if (textNodes.length > 0) {
-                const targetNode = textNodes[0];
-                newRange.setStart(targetNode, Math.min(startOffset, targetNode.textContent.length));
-                newRange.setEnd(targetNode, Math.min(endOffset, targetNode.textContent.length));
+    // Restore cursor position
+    setTimeout(() => {
+        try {
+            const newSel = window.getSelection();
+            if (newSel.rangeCount) {
+                const newRange = newSel.getRangeAt(0);
+                // Try to maintain cursor position
+                if (newRange.startContainer.nodeType === Node.TEXT_NODE) {
+                    newRange.setStart(newRange.startContainer, Math.min(startOffset, newRange.startContainer.textContent.length));
+                    newRange.setEnd(newRange.startContainer, Math.min(endOffset, newRange.startContainer.textContent.length));
+                    newSel.removeAllRanges();
+                    newSel.addRange(newRange);
+                }
             }
-        } else {
-            newRange.selectNodeContents(newElement);
-            newRange.collapse(true);
+        } catch (e) {
+            // Fallback - just focus editor
+            editor.focus();
         }
-        
-        sel.removeAllRanges();
-        sel.addRange(newRange);
-        savedRange = newRange;
-    } catch (e) {
-        // Fallback: just focus the new element
-        newElement.focus();
-    }
-
-    updatePreview();
-    updateToolbarState();
-}
-
-// Helper function to get all text nodes
-function getTextNodes(element) {
-    const textNodes = [];
-    const walker = document.createTreeWalker(
-        element,
-        NodeFilter.SHOW_TEXT,
-        null,
-        false
-    );
-    
-    let node;
-    while (node = walker.nextNode()) {
-        textNodes.push(node);
-    }
-    return textNodes;
+        updateToolbarState();
+    }, 10);
 }
 
 // Handle new text input with current format
 editor.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-        // When Enter is pressed, create new line with current format
+        // When Enter is pressed, apply current format to new line
         setTimeout(() => {
-            const sel = window.getSelection();
-            if (sel.rangeCount) {
-                const range = sel.getRangeAt(0);
-                let currentElement = range.startContainer;
-                
-                // Find the current block element
-                while (currentElement && currentElement.nodeType === Node.TEXT_NODE) {
-                    currentElement = currentElement.parentElement;
-                }
-                
-                // If we're in a heading and it's empty or just created, apply the current format
-                if (currentElement && currentElement !== editor) {
-                    if (currentLineFormat !== 'P' && 
-                        (!currentElement.textContent.trim() || currentElement.tagName !== currentLineFormat)) {
-                        applyFormatToCurrentLine(currentLineFormat);
-                    }
-                }
+            if (currentLineFormat !== 'P') {
+                applyFormatToCurrentLine(currentLineFormat);
             }
         }, 10);
     }
@@ -261,7 +186,6 @@ editor.addEventListener('input', () => {
     editor.addEventListener(evt, () => {
         saveSelection();
         updateToolbarState();
-        updateFontSizeFromSelection();
         updateCurrentLineFormat();
     })
 );
@@ -280,7 +204,7 @@ function updateCurrentLineFormat() {
     }
 
     while (container && container !== editor && 
-           !['P', 'H1', 'H2', 'H3'].includes(container.tagName)) {
+           !['P', 'H1', 'H2', 'H3', 'DIV'].includes(container.tagName)) {
         container = container.parentElement;
     }
 
@@ -289,6 +213,10 @@ function updateCurrentLineFormat() {
         if (headingSelect.value !== currentLineFormat) {
             headingSelect.value = currentLineFormat;
         }
+    } else if (container && container.tagName === 'DIV') {
+        // Treat DIV as paragraph
+        currentLineFormat = 'P';
+        headingSelect.value = 'P';
     }
 }
 
@@ -317,7 +245,7 @@ function updateToolbarState() {
     const range = sel.getRangeAt(0);
     let container = range.startContainer;
 
-    // Traverse up to find the block element
+    // Traverse up to find the element with styling
     while (container && container.nodeType === Node.TEXT_NODE) {
         container = container.parentElement;
     }
@@ -328,195 +256,21 @@ function updateToolbarState() {
         if ([...fontFamilySelect.options].some(o => o.value === fontFamily)) {
             fontFamilySelect.value = fontFamily;
         }
+
+        // Update font size input based on computed style
+        const fontSize = parseInt(window.getComputedStyle(container).fontSize, 10);
+        if (fontSize && !isNaN(fontSize)) {
+            fontSizeInput.value = fontSize;
+        }
     }
 }
-
-// Update font size input based on current selection
-function updateFontSizeFromSelection() {
-    if (isUpdatingFontSize) return;
-
-    const currentSize = getCurrentFontSize();
-    if (currentSize && currentSize !== parseInt(fontSizeInput.value, 10)) {
-        isUpdatingFontSize = true;
-        fontSizeInput.value = currentSize;
-        setTimeout(() => { isUpdatingFontSize = false; }, 50);
-    }
-}
-
-// Apply font size to selection or cursor position
-function applyFontSize() {
-    const size = parseInt(fontSizeInput.value, 10);
-    if (!size || size < 8 || size > 72) return;
-
-    editor.focus();
-    const sel = window.getSelection();
-    if (!sel.rangeCount) return;
-
-    const range = sel.getRangeAt(0);
-
-    if (sel.isCollapsed) {
-        // No selection - handle cursor position
-        const currentNode = range.startContainer;
-        let currentSpan = null;
-
-        // Find if we're inside a span
-        if (currentNode.nodeType === Node.TEXT_NODE) {
-            currentSpan = currentNode.parentElement;
-        } else if (currentNode.nodeType === Node.ELEMENT_NODE) {
-            currentSpan = currentNode;
-        }
-
-        // Check if current span is a font size span and if it's empty
-        if (currentSpan && 
-            currentSpan.tagName === 'SPAN' && 
-            currentSpan.style.fontSize &&
-            (!currentSpan.textContent.trim() || currentSpan.textContent === '\u200B')) {
-            
-            currentSpan.style.fontSize = size + 'px';
-            
-            if (!currentSpan.textContent) {
-                currentSpan.textContent = '\u200B';
-            }
-            
-            try {
-                range.setStart(currentSpan.firstChild, 1);
-                range.setEnd(currentSpan.firstChild, 1);
-                sel.removeAllRanges();
-                sel.addRange(range);
-            } catch (e) {
-                currentSpan.focus();
-            }
-        } else {
-            const tempSpan = document.createElement('span');
-            tempSpan.style.fontSize = size + 'px';
-            tempSpan.textContent = '\u200B';
-            
-            try {
-                range.insertNode(tempSpan);
-                range.setStart(tempSpan.firstChild, 1);
-                range.setEnd(tempSpan.firstChild, 1);
-                sel.removeAllRanges();
-                sel.addRange(range);
-            } catch (e) {
-                editor.focus();
-            }
-        }
-    } else {
-        // Has selection - apply font size to selected text
-        try {
-            const contents = range.extractContents();
-            const span = document.createElement('span');
-            span.style.fontSize = size + 'px';
-            span.appendChild(contents);
-            range.insertNode(span);
-            
-            range.setStartAfter(span);
-            range.setEndAfter(span);
-            sel.removeAllRanges();
-            sel.addRange(range);
-            
-        } catch (e) {
-            console.warn('Font size application failed:', e);
-        }
-    }
-
-    saveSelection();
-    updatePreview();
-}
-
-// Clean up empty spans
-editor.addEventListener('input', (e) => {
-    const spans = editor.querySelectorAll('span');
-    spans.forEach(span => {
-        if (!span.textContent) {
-            span.remove();
-            return;
-        }
-        
-        if (span.textContent === '\u200B') {
-            return;
-        }
-        
-        if (!span.style.cssText) {
-            const parent = span.parentNode;
-            while (span.firstChild) {
-                parent.insertBefore(span.firstChild, span);
-            }
-            span.remove();
-        }
-    });
-
-    updatePreview();
-    updateToolbarState();
-});
-
-// Handle zero-width space cleanup
-editor.addEventListener('beforeinput', (e) => {
-    if (e.inputType === 'insertText' || e.inputType === 'insertCompositionText') {
-        const sel = window.getSelection();
-        if (sel.rangeCount) {
-            const range = sel.getRangeAt(0);
-            const currentNode = range.startContainer;
-            
-            if (currentNode.nodeType === Node.TEXT_NODE && 
-                currentNode.textContent === '\u200B' && 
-                currentNode.parentElement.tagName === 'SPAN') {
-                
-                const span = currentNode.parentElement;
-                currentNode.textContent = '';
-            }
-        }
-    }
-});
 
 // Adjust font size by delta
 function adjustFontSize(delta) {
-    editor.focus();
-
-    let currentSize = getCurrentFontSize();
-    if (!currentSize) {
-        currentSize = parseInt(fontSizeInput.value, 10) || 16;
-    }
-
+    const currentSize = parseInt(fontSizeInput.value, 10) || 16;
     const newSize = Math.min(72, Math.max(8, currentSize + delta));
     fontSizeInput.value = newSize;
-    applyFontSize();
-}
-
-// Get current font size
-function getCurrentFontSize() {
-    const sel = window.getSelection();
-    if (!sel.rangeCount || !editor.contains(sel.anchorNode)) {
-        return parseInt(fontSizeInput.value, 10) || 16;
-    }
-
-    let element;
-    if (sel.isCollapsed) {
-        const range = sel.getRangeAt(0);
-        element = range.startContainer.nodeType === Node.TEXT_NODE
-            ? range.startContainer.parentElement
-            : range.startContainer;
-    } else {
-        const range = sel.getRangeAt(0);
-        element = range.commonAncestorContainer.nodeType === Node.TEXT_NODE
-            ? range.commonAncestorContainer.parentElement
-            : range.commonAncestorContainer;
-    }
-
-    while (element && editor.contains(element)) {
-        const computedStyle = window.getComputedStyle(element);
-        const fontSize = computedStyle.fontSize;
-
-        if (fontSize && fontSize !== 'medium') {
-            const size = parseInt(fontSize, 10);
-            if (size && size > 0) {
-                return size;
-            }
-        }
-        element = element.parentElement;
-    }
-
-    return 16;
+    execCmd('fontSize', getFontSizeLevel(newSize));
 }
 
 // Preview update
@@ -670,6 +424,5 @@ header p{margin:.5rem 0 0;text-align:center;color:var(--text-light);}
 // Initialize toolbar state
 setTimeout(() => {
     updateToolbarState();
-    updateFontSizeFromSelection();
     updateCurrentLineFormat();
 }, 100);

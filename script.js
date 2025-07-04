@@ -255,7 +255,7 @@ function updateToolbarState() {
     });
 }
 
-// Enhanced preview update with proper styling
+// Fixed preview update with proper font family inheritance
 function updatePreview() {
     const title = document.getElementById('docTitle').value.trim() || 'Untitled Document';
     const content = editor.innerHTML;
@@ -282,6 +282,10 @@ function updatePreview() {
             previewFontWeight = 'normal';
     }
 
+    // Get the selected font family - handle fonts with spaces
+    const selectedFont = documentStyles.fontFamily;
+    const fontFamilyCSS = selectedFont.includes(' ') ? `"${selectedFont}"` : selectedFont;
+
     const previewHTML = `
 <!DOCTYPE html>
 <html>
@@ -289,23 +293,37 @@ function updatePreview() {
   <meta charset="UTF-8">
   <title>${title}</title>
   <style>
+    /* Reset and base styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
     body { 
-      font-family: "${documentStyles.fontFamily}", Arial, sans-serif; 
+      font-family: ${fontFamilyCSS}, Arial, sans-serif !important;
       line-height: 1.6; 
       margin: 20px;
-      font-size: ${previewFontSize}px;
-      font-weight: ${previewFontWeight};
+      font-size: ${previewFontSize}px !important;
+      font-weight: ${previewFontWeight} !important;
       color: ${documentStyles.textColor};
       background-color: ${documentStyles.backgroundColor};
     }
-    p, div, span { 
+    
+    /* Force all elements to inherit the document font */
+    *, *::before, *::after {
+      font-family: ${fontFamilyCSS}, Arial, sans-serif !important;
+    }
+    
+    p, div, span, h1, h2, h3, h4, h5, h6, li, td, th, blockquote { 
+      font-family: ${fontFamilyCSS}, Arial, sans-serif !important;
       font-size: inherit !important;
       font-weight: inherit !important;
-      font-family: inherit !important;
     }
-    /* Ensure all text inherits the document font */
-    * {
-      font-family: inherit !important;
+    
+    /* Override any inline styles that might interfere */
+    [style*="font-family"] {
+      font-family: ${fontFamilyCSS}, Arial, sans-serif !important;
     }
   </style>
 </head>
@@ -344,6 +362,9 @@ function printContent() {
             printFontWeight = 'normal';
     }
     
+    const selectedFont = documentStyles.fontFamily;
+    const fontFamilyCSS = selectedFont.includes(' ') ? `"${selectedFont}"` : selectedFont;
+    
     const win = window.open('', '_blank');
     win.document.write(`
 <!DOCTYPE html>
@@ -351,23 +372,23 @@ function printContent() {
 <head>
   <title>${title}</title>
   <style>
+    * {
+      font-family: ${fontFamilyCSS}, Arial, sans-serif !important;
+    }
     body { 
-      font-family: "${documentStyles.fontFamily}", Arial, sans-serif; 
+      font-family: ${fontFamilyCSS}, Arial, sans-serif !important;
       line-height: 1.6; 
       margin: 20px;
-      font-size: ${printFontSize}px;
-      font-weight: ${printFontWeight};
+      font-size: ${printFontSize}px !important;
+      font-weight: ${printFontWeight} !important;
       color: ${documentStyles.textColor};
     }
-    p, div, span { 
+    p, div, span, h1, h2, h3, h4, h5, h6 { 
+      font-family: ${fontFamilyCSS}, Arial, sans-serif !important;
       font-size: inherit !important;
       font-weight: inherit !important;
-      font-family: inherit !important;
     }
     h1 { font-size: 1.2em; margin: 1em 0 0.5em 0; }
-    * {
-      font-family: inherit !important;
-    }
   </style>
 </head>
 <body>
@@ -417,10 +438,13 @@ function generateExportHTML(title, contentHTML) {
             exportFontWeight = 'normal';
     }
 
+    const selectedFont = documentStyles.fontFamily;
+    const fontFamilyCSS = selectedFont.includes(' ') ? `"${selectedFont}"` : selectedFont;
+
     const css = `
 :root { --brand-green: #f0fdfa; --border: #e2e8f0; --text-dark: #111; --text-light: #555;}
-*{box-sizing:border-box;}
-body{margin:0;padding:0;font-family:"${documentStyles.fontFamily}",system-ui,sans-serif;color:var(--text-dark);font-size:${exportFontSize}px;font-weight:${exportFontWeight};}
+*{box-sizing:border-box;font-family:${fontFamilyCSS},system-ui,sans-serif !important;}
+body{margin:0;padding:0;font-family:${fontFamilyCSS},system-ui,sans-serif !important;color:var(--text-dark);font-size:${exportFontSize}px;font-weight:${exportFontWeight};}
 header{background:var(--brand-green);padding:2rem 1rem;}
 header .inner{max-width:900px;margin:auto;}
 header h1{margin:0;text-align:center;font-size:2rem;}
@@ -439,7 +463,7 @@ header p{margin:.5rem 0 0;text-align:center;color:var(--text-light);}
 .content table{width:100%;border-collapse:collapse;margin:1rem 0;}
 .content th,.content td{border:1px solid var(--border);padding:.5rem;}
 .content code,.content pre{background:#f7fafc;padding:.2rem .4rem;border-radius:4px;}
-.content p, .content div, .content span { font-size: inherit !important; font-weight: inherit !important; font-family: inherit !important; }
+.content p, .content div, .content span, .content h1, .content h2, .content h3 { font-family: ${fontFamilyCSS}, system-ui, sans-serif !important; font-size: inherit !important; font-weight: inherit !important; }
 `;
 
     const html = `<!DOCTYPE html>
